@@ -73,9 +73,9 @@ For example, with a local `CyclomaticComplexityThreshold` of `41` and an unavail
 
 Unknown top-level setting names are handled separately: recognized settings still apply, with one `CM0001` warning per unknown name in either configuration. An invalid value in the base configuration is still an error even when a local override would replace it.
 
-Failed HTTP requests are retried when a later compilation requests settings. This covers network errors, timeouts, HTTP error statuses and oversized response bodies. The failing compilation keeps its defaults and CM0001 diagnostic; a later successful compilation uses the recovered configuration without restarting the language server. There is no timer or background refresh.
+Failed HTTP requests are cached per workspace path for **30 seconds after the failed request completes**. This covers network errors, timeouts, HTTP error statuses and oversized response bodies. Compilations during this cooldown reuse defaults and CM0001 without fetching again, so offline editing does not trigger another request on every analysis pass. Cache hits do not extend the cooldown. After it expires, the first new compilation requesting settings makes one shared retry; another failed request starts a new 30-second cooldown. A successful retry stays cached for the analyzer session. Existing compilations keep their original settings and diagnostic snapshot, even after recovery. There is no timer or background refresh.
 
-The first analysis using an uncached HTTP source can wait for up to the five-second request timeout. Cancelling that analysis also cancels the request. Cancellation does not produce CM0001 or cache a failed result.
+The first analysis using an uncached HTTP source, and each retry after the cooldown, can wait for up to the five-second request timeout. Cancelling that analysis also cancels the request. Cancellation does not produce CM0001, cache a failed result or start a new cooldown.
 
 Successfully loaded settings and deterministic configuration errors, such as malformed JSON or an invalid source declaration, remain cached for the analyzer session. After changing these, restart the analyzer process; in VS Code, use **Developer: Reload Window**. Command-line builds reload settings when a new compiler process starts.
 
